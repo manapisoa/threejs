@@ -1,53 +1,63 @@
 import { useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Edges, MeshDistortMaterial } from '@react-three/drei';
+import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { OrbitControls, Edges } from '@react-three/drei';
+import { TextureLoader } from 'three';
 
 // ──────────────────────────────────────
-// 1. Cube avec bordure + rotation
+// Soleil avec image.png
 // ──────────────────────────────────────
-function Box(props) {
+function Sun() {
   const ref = useRef();
+  const sunTexture = useLoader(TextureLoader, '/image.png');
 
-  // Animation : rotation lente sur Y et X
   useFrame((state, delta) => {
-    if (ref.current) {
-      ref.current.rotation.y += delta * 0.5;
-      ref.current.rotation.x += delta * 0.3;
-    }
+    ref.current.rotation.y += delta * 0.08;
   });
 
   return (
-    <mesh {...props} ref={ref}>
-      <boxGeometry args={[1.2, 1.2, 1.2]} />
-      <MeshDistortMaterial color="hotpink" distort={0.4} speed={2} />
-      
-      {/* Bordure noire bien visible */}
-      <Edges linewidth={4} color="black" />
+    <mesh ref={ref}>
+      <sphereGeometry args={[2.4, 80, 80]} />
+      <meshStandardMaterial
+        map={sunTexture}
+        emissive="#ffaa00"
+        emissiveMap={sunTexture}
+        emissiveIntensity={1.4}
+        roughness={0.5}
+      />
+      <Edges linewidth={5} color="#ffdd00" />
     </mesh>
   );
 }
 
 // ──────────────────────────────────────
-// 2. Sphère stylée (deuxième objet)
+// Terre avec earth.png (texture réaliste)
 // ──────────────────────────────────────
-function Sphere(props) {
-  const ref = useRef();
+function EarthOrbit() {
+  const groupRef = useRef();
+  const earthRef = useRef();
 
-  // Rotation inverse pour plus de vie
+  // Charge la texture de la Terre
+  const earthTexture = useLoader(TextureLoader, '/earth.png');
+
   useFrame((state, delta) => {
-    if (ref.current) {
-      ref.current.rotation.y -= delta * 0.8;
-    }
+    groupRef.current.rotation.y += delta * 0.5;   // orbite autour du Soleil
+    earthRef.current.rotation.y += delta * 2;     // rotation sur elle-même
   });
 
   return (
-    <mesh {...props} ref={ref}>
-      <sphereGeometry args={[0.8, 32, 32]} />
-      <meshStandardMaterial color="#00ffff" metalness={0.8} roughness={0.2} />
-      
-      {/* Bordure cyan qui ressort bien */}
-      <Edges linewidth={3} color="#00ffff" />
-    </mesh>
+    <group ref={groupRef}>
+      <mesh ref={earthRef} position={[5, 0, 0]}>
+        <sphereGeometry args={[0.8, 64, 64]} />
+        <meshStandardMaterial map={earthTexture} roughness={0.8} metalness={0.1} />
+        <Edges linewidth={3} color="cyan" />
+      </mesh>
+
+      {/* Ligne d'orbite */}
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[4.9, 5.1, 64]} />
+        <meshBasicMaterial color="#ffffff" opacity={0.2} transparent />
+      </mesh>
+    </group>
   );
 }
 
@@ -56,21 +66,25 @@ function Sphere(props) {
 // ──────────────────────────────────────
 export default function App() {
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#111' }}>
-      <Canvas camera={{ position: [0, 0, 6], fov: 60 }}>
-        {/* Lumières */}
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} intensity={1} />
-        <pointLight position={[-10, -10, -10]} intensity={0.5} color="#ff00ff" />
+    <div style={{ width: '100vw', height: '100vh', background: '#000814' }}>
+      <Canvas camera={{ position: [0, 6, 15], fov: 60 }}>
+        <ambientLight intensity={0.3} />
+        <pointLight position={[0, 0, 0]} intensity={4} color="#ffaa00" />
 
-        {/* Les deux objets */}
-        <Box position={[-1.8, 0, 0]} />
-        <Sphere position={[1.8, 0, 0]} />
+        <Sun />
+        <EarthOrbit />
 
-        {/* Contrôles souris */}
-        <OrbitControls enablePan={false} maxDistance={10} minDistance={3} />
+        <OrbitControls
+          autoRotate
+          autoRotateSpeed={0.4}
+          enablePan={false}
+          minDistance={8}
+          maxDistance={30}
+        />
 
-        {/* Optionnel : grille au sol pour le style */}
+        {/* Petites étoiles en fond */}
+        <pointLight position={[25, 25, 25]} intensity={0.6} />
+        <pointLight position={[-25, -25, -25]} intensity={0.4} color="#4488ff" />
       </Canvas>
     </div>
   );
