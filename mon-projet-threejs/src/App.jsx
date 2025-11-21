@@ -1,27 +1,52 @@
-import { useRef } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { useRef, useEffect } from 'react';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { OrbitControls, Edges } from '@react-three/drei';
-import { TextureLoader } from 'three';
+import { TextureLoader, BackSide, Mesh, SphereGeometry, MeshBasicMaterial } from 'three';
+
+// Texture loading components
+function SunTextures() {
+  const sunTexture = useLoader(TextureLoader, '/sun.jpg');
+  return (
+    <meshStandardMaterial
+      map={sunTexture}
+      emissive="#ffaa00"
+      emissiveMap={sunTexture}
+      emissiveIntensity={1.5}
+      roughness={0.5}
+    />
+  );
+}
+
+function EarthTextures() {
+  const earthTexture = useLoader(TextureLoader, '/earth.png');
+  return <meshStandardMaterial map={earthTexture} roughness={0.8} />;
+}
+
+function MoonTextures() {
+  const moonTexture = useLoader(TextureLoader, '/moon.png');
+  return <meshStandardMaterial map={moonTexture} roughness={0.95} />;
+}
+
+function MarsTextures() {
+  const marsTexture = useLoader(TextureLoader, '/mars.png');
+  return <meshStandardMaterial map={marsTexture} roughness={0.9} />;
+}
 
 // ──────────────────────────────────────
-// Soleil avec image.png
 // ──────────────────────────────────────
 function Sun() {
   const ref = useRef();
   const sunTexture = useLoader(TextureLoader, '/image2.png');
-
-  useFrame((state, delta) => {
-    ref.current.rotation.y += delta * 0.08;
-  });
+  useFrame((state, delta) => (ref.current.rotation.y += delta * 0.06));
 
   return (
     <mesh ref={ref}>
-      <sphereGeometry args={[2.4, 80, 80]} />
+      <sphereGeometry args={[2.5, 80, 80]} />
       <meshStandardMaterial
         map={sunTexture}
         emissive="#ffaa00"
         emissiveMap={sunTexture}
-        emissiveIntensity={1.4}
+        emissiveIntensity={1.5}
         roughness={0.5}
       />
       <Edges linewidth={5} color="#ffdd00" />
@@ -30,61 +55,129 @@ function Sun() {
 }
 
 // ──────────────────────────────────────
-// Terre avec earth.png (texture réaliste)
+// Terre + Lune (CORRIGÉ : la Terre tourne bien autour du Soleil)
 // ──────────────────────────────────────
 function EarthOrbit() {
-  const groupRef = useRef();
+  const orbitRef = useRef();     // ← ce groupe tourne autour du Soleil
   const earthRef = useRef();
-
-  // Charge la texture de la Terre
-  const earthTexture = useLoader(TextureLoader, '/earth.png');
+  const moonOrbitRef = useRef(); // ← Lune autour de la Terre
 
   useFrame((state, delta) => {
-    groupRef.current.rotation.y += delta *0.5;   // orbite autour du Soleil
-    earthRef.current.rotation.y += delta * 1;     // rotation sur elle-même
+    orbitRef.current.rotation.y += delta * 0.5;     // Terre autour du Soleil
+    earthRef.current.rotation.y += delta * 2;       // rotation de la Terre
+    moonOrbitRef.current.rotation.y += delta * 1;   // Lune autour de la Terre (rapide)
   });
 
   return (
-    <group ref={groupRef}>
+    <group ref={orbitRef}>
+      {/* Terre (à 5 unités du Soleil) */}
       <mesh ref={earthRef} position={[5, 0, 0]}>
         <sphereGeometry args={[0.8, 64, 64]} />
-        <meshStandardMaterial map={earthTexture} roughness={0.8} metalness={0.1} />
-        <Edges linewidth={3} color="cyan" />
+        <EarthTextures />
+        <Edges linewidth={2} color="cyan" />
       </mesh>
 
-      {/* Ligne d'orbite */}
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
+      {/* Lune */}
+      <group ref={moonOrbitRef} position={[5, 0, 0]}>
+        <mesh position={[1.5, 0, 0]}>
+          <sphereGeometry args={[0.27, 64, 64]} />
+          <MoonTextures />
+          <Edges linewidth={2} color="#cccccc" />
+        </mesh>
+      </group>
+
+      {/* Orbite visible (optionnel) */}
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
         <ringGeometry args={[4.9, 5.1, 64]} />
-        <meshBasicMaterial color="#ffffff" opacity={0.2} transparent />
+        <meshBasicMaterial color="#3388ff" opacity={2} transparent />
       </mesh>
     </group>
   );
 }
 
 // ──────────────────────────────────────
-// App principale
+// Mars
+// ──────────────────────────────────────
+function MarsOrbit() {
+  const orbitRef = useRef();
+  const marsRef = useRef();
+
+  useFrame((state, delta) => {
+    orbitRef.current.rotation.y += delta * 0.25;
+    marsRef.current.rotation.y += delta * 1.8;
+  });
+
+  return (
+    <group ref={orbitRef}>
+      <mesh ref={marsRef} position={[9, 0, 0]}>
+        <sphereGeometry args={[0.6, 64, 64]} />
+        <MarsTextures />
+        <Edges linewidth={3} color="#ff8888" />
+      </mesh>
+    </group>
+  );
+}
+
+// ──────────────────────────────────────
+// Background
+// ──────────────────────────────────────
+function SpaceBackground() {
+  const { scene } = useThree();
+  
+  useEffect(() => {
+    const loader = new TextureLoader();
+    const texture = loader.load('/space.jpg');
+    
+    // Créer une sphère géante avec l'intérieur texturé
+    const geometry = new SphereGeometry(1000, 32, 32);
+    const material = new MeshBasicMaterial({
+      map: texture,
+      side: BackSide,
+      transparent: true,
+      opacity: 1
+    });
+    
+    const skybox = new Mesh(geometry, material);
+    scene.background = texture;
+    
+    return () => {
+      // Nettoyage
+      geometry.dispose();
+      material.dispose();
+      texture.dispose();
+    };
+  }, [scene]);
+  
+  return null;
+}
+
+// ──────────────────────────────────────
+// App
 // ──────────────────────────────────────
 export default function App() {
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#000814' }}>
-      <Canvas camera={{ position: [0, 6, 15], fov: 60 }}>
-        <ambientLight intensity={0.3} />
-        <pointLight position={[0, 0, 0]} intensity={4} color="#ffaa00" />
+    <div style={{ width: '100vw', height: '100vh' }}>
+      <Canvas camera={{ position: [0, 10, 25], fov: 60 }}>
+        <SpaceBackground />
+        <ambientLight intensity={0.2} />
+        <pointLight position={[0, 0, 0]} intensity={5} color="#ffaa00" />
 
-        <Sun />
+      <Sun />
+        
         <EarthOrbit />
+        <MarsOrbit />
 
         <OrbitControls
           autoRotate
-          autoRotateSpeed={0.4}
+          autoRotateSpeed={0.3}
           enablePan={false}
-          minDistance={8}
-          maxDistance={30}
+          minDistance={10}
+          maxDistance={50}
         />
 
-        {/* Petites étoiles en fond */}
-        <pointLight position={[25, 25, 25]} intensity={0.6} />
-        <pointLight position={[-25, -25, -25]} intensity={0.4} color="#4488ff" />
+        {/* Étoiles */}
+        <pointLight position={[40, 40, 40]} intensity={0.8} />
+        <pointLight position={[-40, -40, -40]} intensity={0.6} color="#4466ff" />
       </Canvas>
     </div>
   );
