@@ -8,7 +8,7 @@ import { TextureLoader } from 'three';
 // ──────────────────────────────────────
 function Sun() {
   const ref = useRef();
-  const sunTexture = useLoader(TextureLoader, '/image.png');
+  const sunTexture = useLoader(TextureLoader, '/image2.png');
 
   useFrame((state, delta) => {
     ref.current.rotation.y += delta * 0.08;
@@ -40,8 +40,8 @@ function EarthOrbit() {
   const earthTexture = useLoader(TextureLoader, '/earth.png');
 
   useFrame((state, delta) => {
-    groupRef.current.rotation.y += delta * 0.5;   // orbite autour du Soleil
-    earthRef.current.rotation.y += delta * 2;     // rotation sur elle-même
+    groupRef.current.rotation.y += delta *0.5;   // orbite autour du Soleil
+    earthRef.current.rotation.y += delta * 1;     // rotation sur elle-même
   });
 
   return (
